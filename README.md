@@ -5,7 +5,9 @@ DE1-NPU is a hardware **Tensor Processing Unit (TPU)** that accelerates matrix m
 
 The hardware component of this project was based on a much smaller, TinyTapeout-synthesizable TPU design, which you can view [here](https://github.com/HynixCJR/ttsky-miniTPU). The original TPU was made by [Matthew Kong](https://github.com/HynixCJR), [Albert Huang](https://github.com/dphhs), [Jiya Nair](https://github.com/Jiya-uoft), and [Rivera Wijaya](https://github.com/RiveraWijaya). This project was made by [Matthew Kong](https://github.com/HynixCJR) and [Parth Talati](https://github.com/parthT123-E) for ECE243 at the University of Toronto.
 
----
+## Disclaimer
+This project was made for ECE243: Computer Organization at the University of Toronto. At the request of our instructor, we have not released the code publicly to prevent academic integrity violations. If you would like to see the source code (and are not a student currently enrolled in ECE243), please reach out to us!
+
 ## Table of Contents
 For better or for worse, this document is quite long, so I've added a Table of Contents to help you navigate.
 1. [High Level Block Diagram](#high-level-block-diagram)

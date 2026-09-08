@@ -27,6 +27,18 @@ For better or for worse, this document is quite long, so I've added a Table of C
     2.4 [Nios V/g Processor](#4-modified-nios-vg-processor)
 4. [Software](#software-the-terminal-wrapper)
 
+    4.1 [VGA Terminal](#1-vga-terminal)
+   
+    4.2 [Command Shell](#2-command-shell)
+   
+    4.3 [Named Matrix Pool](#3-named-matrix-pool)
+   
+    4.4 [TPU Backend](#4-tpu-backend)
+   
+    4.5 [CPU Matrix and Linear Algebra](#5-cpu-matrix-and-linear-algebra)
+   
+    4.6 [ASCII Plot](#6-ascii-plot)
+
 ---
 
 ### High Level Block Diagram
@@ -104,8 +116,32 @@ The Nios V/g processor that the software runs on was modified in Platform Design
 ---
 
 ### Software: The Terminal Wrapper
-To coordinate hardware matrix data loading, keyboard input, VGA output, terminal graphics, additional matrix operations (determinant, plotting, etc.), and software matrix multiplication.
+_Tools used: C, Nios V/g GCC, VGA character buffer, PS/2 keyboard_
+
+The software component of the NPU consists of:
+1. A VGA terminal for keyboard input and on-screen output
+2. A command shell that dispatches matrix operations
+3. A named matrix pool for operands and results
+4. An MMIO backend that stages data into shared memory and starts the TPU
+5. CPU fallback paths for matrix arithmetic and linear algebra
+6. An ASCII plotter for vectors
 
 ![High Level Block Diagram of the Software Component of the DE1-NPU](./images/sw_block_diagram.png)
 
-*this section is currently incomplete*
+#### 1. VGA Terminal
+The terminal is an **80x60 character display** drawn on the DE1-SoC VGA output. Keyboard input is polled from the PS/2 controller in a bare-metal loop. The line editor supports backspace, command history (up/down), and page-up / page-down to scroll older output. This is the only user-facing I/O path.
+
+#### 2. Command Shell
+Each submitted line is tokenized and dispatched by the shell. Utility commands cover help, screen clear, backend status, and TPU reset (`help`, `clear`, `status`, `backend`, `resetnpu`). Named-matrix commands (`lm`, `write`, `rm`) list, create, and delete pool entries. Arithmetic commands (`matmul`, `matadd`, `matsub`) can target the TPU (`-hw`) or the CPU (`-sw`). Linear algebra (`rank`, `trace`, `det`, `rref`, `dot`, `cross`, `linsolve`) always runs on the CPU. `plot` draws a vector on screen; `npufetch` prints a system banner.
+
+#### 3. Named Matrix Pool
+Matrices live in a software pool of up to 32 named slots. The pool is the canonical store between jobs; TPU shared memory is only used as staging during a hardware multiply. Inputs are packed INT6 values in `uint8_t` arrays. Matmul results are `int32`; add/sub results are `int16`. A few demo matrices (A, B, Cm, vectors, and a small linear-solve pair) are seeded at startup so commands can be tried immediately.
+
+#### 4. TPU Backend
+When `-hw` is selected for a square **2x2, 4x4, 8x8, or 16x16** multiply, the MMIO driver converts pool INT6 values to INT8, copies A and B into the 4KB shared memory in the layout required by the TPU, programs the control and pointer registers, waits for `reg_done`, and copies C back into the pool. The `-act` flag is written into the same control-register activation field described in hardware (none, ReLU, leaky ReLU, ReLU6). Add and subtract are not implemented in hardware, so those jobs use the CPU path. A stub backend exists for host / CPulator builds; it runs the CPU path and reports hardware as not ready.
+
+#### 5. CPU Matrix and Linear Algebra
+The CPU path runs the same named operations when `-sw` is set, or when the TPU cannot take the job (non-square sizes, dimensions above 16, add/sub). Software matmul supports rectangular matrices up to 64x64. Rank, determinant, RREF, trace, dot product, 3-vector cross product, and linear solve (`A*X=B`) are CPU-only.
+
+#### 6. ASCII Plot
+`plot V` (or `plot(V)`) maps a 1xN or Nx1 vector onto a character canvas on the VGA terminal. It is a visualization helper, not an accelerator feature.
